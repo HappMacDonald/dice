@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <title>Dice app with good entropy</title>
 <style>
 body
@@ -54,8 +55,12 @@ button
   font-size: 36px;
   width: 100%;
 }
+#historyTD
+{ height: 100%;
+}
 #historyOutput
 { width: 256px;
+  /* height: 98%; */
   height: calc(100% - 20px);
   /* box-sizing: border-box; */
   background: #333;
@@ -91,19 +96,34 @@ function clickedPlusMinus(label)
 }
 
 function redraw()
-{ data.dx.sides = data.dx.shapeInput.value;
+{ data.dx.sides
+  = data.dx.shapeInput.value
+  = forceInteger(data.dx.shapeInput.value, 2);
+
   let totalRoll = 0;
   for(let [label, row] of Object.entries(data))
   { // Consume Inputs
-    row.qty = row.qtyInput.value;
-    row.modifier = row.modifierInput.value;
+    row.qty
+    = row.qtyInput.value
+    = forceInteger(row.qtyInput.value);
+console.log(label, 'qty = ', row.qty, forceInteger(row.qtyInput.value));
+
+    row.modifier
+    = row.modifierInput.value
+    = forceInteger(row.modifierInput.value);
 
     // Produce Outputs
     row.plusMinusImage.src = plusMinusImages[row.plusMinus];
-    row.rollOutput.innerHTML = row.roll;
+    row.rollOutput.innerHTML
+    = row.roll
+    = forceInteger(row.roll);
+
     totalRoll += row.roll;
   }
-  totalRollOutput.innerHTML = totalRoll;
+  totalRollOutput.innerHTML
+  = totalRoll
+  = forceInteger(totalRoll);
+
   historyOutput.scrollTop = historyOutput.scrollHeight;
 }
 
@@ -141,8 +161,13 @@ function init()
   // This resize trick on whole table helps historyOutput
   // to vertically resize itself
   window.widgetTable = document.getElementById('widget');
+  
   widgetTable.style.height = `${widgetTable.offsetHeight}px`;
+  // historyOutput.style.height = `${widgetTable.offsetHeight - 20}px`;
+  historyOutput.style.height = `595px`;
+  
 
+  
 
   let inputs = document.getElementsByTagName('input');
   for(input of inputs)
@@ -252,10 +277,14 @@ function clickedRoll(label='all', header=true)
     for(let [label, row] of Object.entries(data))
     { clickedRoll(label, false);
     }
-    let totalRoll = totalRollOutput.innerText;
-    if(!isInteger(totalRoll))
-    { totalRoll = 0;
-    }
+    let totalRoll
+    = totalRollOutput.innerText
+    = forceInteger(totalRollOutput.innerText);
+
+    // let totalRoll = totalRollOutput.innerText;
+    // if(!isInteger(totalRoll))
+    // { totalRoll = 0;
+    // }
     if(totalRoll < 1)
     { appendHistory("Qty = 0 everywhere");
     }
@@ -288,13 +317,13 @@ function clickedRoll(label='all', header=true)
     { let sum = 0;
       let rolls = [];
       for(let index=0; index<row.qty; index++)
-      { let roll = doRoll(row.sides);
+      { let roll = forceInteger(doRoll(row.sides), 1);
         sum += roll;
         rolls.push(roll);
       }
-      sum += modifier;
-      row.roll = sum;
-      appendHistory(`${dlabel} x${row.qty}: ${rolls.join(",")} ${dmodifier} = ${sum}`);
+      sum = forceInteger(sum + modifier, 1);
+      row.roll = sum = forceInteger(sum);
+      appendHistory(`${dlabel} x${row.qty}: ${rolls.join(", ")} ${dmodifier} = ${sum}`);
     }
   }
   if(header)
@@ -303,15 +332,29 @@ function clickedRoll(label='all', header=true)
   redraw();
 }
 
+function forceInteger(maybeInteger, minimum=0)
+{ if(!isInteger(maybeInteger))
+  { maybeInteger = 0;
+  }
+
+  let result = Math.max(parseInt(maybeInteger), minimum);
+console.log('forceInteger', maybeInteger, result, isInteger(maybeInteger), !isInteger(maybeInteger));
+  return(result);
+}
+
 // Code courtesy of https://stackoverflow.com/users/17121/dan
 // per https://stackoverflow.com/questions/175739/built-in-way-in-javascript-to-check-if-a-string-is-a-valid-number
 function isInteger(maybeInteger)
-{ if(typeof maybeInteger != "string")
-  { return false; // we only process strings!
+{ if
+  ( typeof maybeInteger != "string"
+  &&typeof maybeInteger != "number"
+  )
+  { return false; // we only process strings and numbers!
   }
   let result =
   ( !isNaN(maybeInteger) // use type coercion to parse the _entirety_ of the string (`parseInt` alone does not do this)...
   &&!isNaN(parseInt(maybeInteger)) // ...and ensure strings of whitespace fail
+  &&!maybeInteger.toString().match(/[^\d]/)
   );
   return(result);
 }
@@ -340,7 +383,7 @@ function isInteger(maybeInteger)
       document.writeln(`<td>${label}</td>`);
 
       if(label == 'dx')
-      { document.writeln(`<td class='centered'><input type="number" id='dxShapeInput' min=2 value=${sides}></td>`);
+      { document.writeln(`<td class='centered'><input type="number" id='dxShapeInput' min=2 step=1 pattern="\\d*" value=${sides}></td>`);
       }
       else
       { document.writeln(`<td class='centered'>`);
@@ -359,7 +402,7 @@ function isInteger(maybeInteger)
 
       // This td colspans table, and is only defined once at the top row.
       if(label == 'coin')
-      { document.writeln(`<td rowspan=9><div id='historyOutput'></div></td>`);
+      { document.writeln(`<td rowspan=9 id='historyTD'><div id='historyOutput'></div></td>`);
       }
       document.writeln(`</tr>`);
     }
