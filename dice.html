@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dice app with good entropy</title>
+<style>
+body
+{ background: black;
+  color: white;
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  font-size: 18px;
+}
+h1 { text-align: center; }
+table#widget
+{ border-collapse: collapse;
+  border: 3px solid #223;
+}
+table#widget th
+, table#widget td
+{ border: 2px solid #446;
+  padding: 5px 10px;
+}
+table#widget td
+{ font-size: 27px;
+}
+table#widget th
+{ font-size: 18px;
+}
+.centered
+{ text-align: center;
+}
+table#widget th.totalHeader
+{ text-align: right;
+  font-size: 27px;
+}
+.icon
+{ width: 48px;
+  height: 48px;
+}
+input, .numberOuput
+{ width: 60px;
+  font-size: 36px;
+  text-align: center;
+  background: #333;
+}
+button.invisibleButton
+{ background: transparent;
+  border: 0;
+  font-size: 36px;
+}
+button
+{ background: #333;
+  font-size: 36px;
+  width: 100%;
+}
+#historyOutput
+{ width: 256px;
+  height: calc(100% - 20px);
+  /* box-sizing: border-box; */
+  background: #333;
+  padding: 5px 10px;
+  overflow-y: scroll;
+}
+/* #clearAll
+{ width: 100%;
+} */
+</style>
+<script>
+
+window.plusMinusImages =
+{ 1: 'plus.png'
+, '-1': 'minus.png'
+};
+
+window.diceShapes =
+{ coin: 2
+, d4: 4
+, d6: 6
+, d8: 8
+, d10: 10
+, d12: 12
+, d20: 20
+, d100: 100
+, dx: 7
+};
+
+function clickedPlusMinus(label)
+{ window.data[label].plusMinus *= -1;
+  redraw();
+}
+
+function redraw()
+{ data.dx.sides = data.dx.shapeInput.value;
+  let totalRoll = 0;
+  for(let [label, row] of Object.entries(data))
+  { // Consume Inputs
+    row.qty = row.qtyInput.value;
+    row.modifier = row.modifierInput.value;
+
+    // Produce Outputs
+    row.plusMinusImage.src = plusMinusImages[row.plusMinus];
+    row.rollOutput.innerHTML = row.roll;
+    totalRoll += row.roll;
+  }
+  totalRollOutput.innerHTML = totalRoll;
+  historyOutput.scrollTop = historyOutput.scrollHeight;
+}
+
+function init()
+{ window.data = {};
+  for(let [label, sides] of Object.entries(diceShapes))
+  { let row =
+    { // qty defaults in html
+      qtyInput: document.getElementById(`${label}QtyInput`)
+    , plusMinus: 1 // defaults to plus
+    , plusMinusImage: document.getElementById(`${label}PlusMinusImage`)
+    // modifier defaults in html
+    , modifierInput: document.getElementById(`${label}ModifierInput`)
+    , roll: 0
+    , rollOutput: document.getElementById(`${label}RollOutput`)
+    , sides: sides
+    , verb: label=='coin'?'flip':'roll'
+    , capitalVerb: label=='coin'?'Flip':'Roll'
+    }
+
+    row.rollOutput.onclick =
+      () => { greedySelect(row.rollOutput) };
+
+    data[label] = row;
+  };
+  data.dx.shapeInput = document.getElementById('dxShapeInput');
+  window.historyOutput = document.getElementById('historyOutput');
+  historyOutput.onclick =
+      () => { greedySelect(historyOutput) };
+  
+  window.totalRollOutput = document.getElementById('totalRollOutput');
+  totalRollOutput.onclick =
+      () => { greedySelect(totalRollOutput) };
+  
+  // This resize trick on whole table helps historyOutput
+  // to vertically resize itself
+  window.widgetTable = document.getElementById('widget');
+  widgetTable.style.height = `${widgetTable.offsetHeight}px`;
+
+
+  let inputs = document.getElementsByTagName('input');
+  for(input of inputs)
+  { input.addEventListener('input', redraw);
+  }
+
+  redraw();
+}
+
+function greedySelect(htmlNode)
+{ 
+  // alert(htmlNode +':'+ htmlNode.id);
+  // return;
+  // htmlNode.focus();
+
+  let range = document.createRange();
+  range.selectNode(htmlNode);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+
+  document.execCommand('copy');
+}
+
+function clearInputs(consent=false)
+{ if(!(consent || confirm("Are you sure you want to reset the input fields, and set all Qty to 1?")))
+  { return;
+  }
+
+  for(let [label, row] of Object.entries(data))
+  { row.qtyInput.value = 1;
+    row.plusMinus = 1;
+    row.modifierInput.value = 0;
+  }
+
+  redraw();
+}
+
+function clearRolls(consent=false)
+{ if(!(consent || confirm("Are you sure you want to clear the Roll readouts?")))
+  { return;
+  }
+  for(let [label, row] of Object.entries(data))
+  { row.roll = 0;
+  }
+
+  redraw();
+}
+
+function clearHistory(consent=false)
+{ if(!(consent || confirm("Are you sure you want to clear the History readout?")))
+  { return;
+  }
+  historyOutput.innerText = '';
+  
+  redraw();
+}
+
+function zeroQtys(consent=false)
+{ if(!(consent || confirm("Are you sure you want to Zero out every Qty field?")))
+  { return;
+  }
+  
+  for(let [label, row] of Object.entries(data))
+  { row.qtyInput.value = 0;
+  }
+  clearRolls(true);
+
+  redraw();
+}
+
+function clearAll(consent=false)
+{ if(!(consent || confirm("Are you sure you want to reset THE ENTIRE page?")))
+  { return;
+  }
+  clearInputs(true);
+  clearRolls(true);
+  clearHistory(true);
+}
+
+function appendHistory(message)
+{ if(historyOutput.innerText.length>0)
+  { historyOutput.innerText += '\n';
+  }
+  historyOutput.innerText += message;
+  console.log(message);
+  redraw();
+}
+
+function doRoll(sides) // performs a cryptographic roll
+{ let entropy = -1;
+  let MAX_UINT32 = Math.pow( 2, 32 ) - 1;
+  while(entropy<0 || entropy > MAX_UINT32 - sides)
+  { 
+// console.log(`${entropy} leads to new Crypto Roll`);
+    entropy = window.crypto.getRandomValues(new Uint32Array(1))[0];
+  }
+// console.log(`${entropy} is settled`);
+
+  return((entropy % sides) + 1);
+}
+
+function clickedRoll(label='all', header=true)
+{ redraw();
+
+  if(label == 'all')
+  { appendHistory("== Rolled All");
+    for(let [label, row] of Object.entries(data))
+    { clickedRoll(label, false);
+    }
+    let totalRoll = totalRollOutput.innerText;
+    if(!isInteger(totalRoll))
+    { totalRoll = 0;
+    }
+    if(totalRoll < 1)
+    { appendHistory("Qty = 0 everywhere");
+    }
+    else
+    { appendHistory(`Total Rolls: ${totalRoll}`);
+    }
+  }
+  else
+  { let row = data[label];
+    let dlabel = label;
+    let modifier = row.plusMinus * row.modifier;
+    let dmodifier =
+      ( modifier==0
+      ? ''
+      : ( (row.plusMinus==1?'+':'-')
+        + row.modifier
+        )
+      );
+
+    if(label=='dx')
+    { dlabel = `d${row.sides}`;
+    }
+    if(header)
+    { appendHistory(`== ${row.capitalVerb}ed ${dlabel}`);
+      if(row.qty<1)
+      { appendHistory(`${dlabel} Qty = 0`);
+      }
+    }
+    if(row.qty>0)
+    { let sum = 0;
+      let rolls = [];
+      for(let index=0; index<row.qty; index++)
+      { let roll = doRoll(row.sides);
+        sum += roll;
+        rolls.push(roll);
+      }
+      sum += modifier;
+      row.roll = sum;
+      appendHistory(`${dlabel} x${row.qty}: ${rolls.join(",")} ${dmodifier} = ${sum}`);
+    }
+  }
+  if(header)
+  { appendHistory(''); // blank line
+  }
+  redraw();
+}
+
+// Code courtesy of https://stackoverflow.com/users/17121/dan
+// per https://stackoverflow.com/questions/175739/built-in-way-in-javascript-to-check-if-a-string-is-a-valid-number
+function isInteger(maybeInteger)
+{ if(typeof maybeInteger != "string")
+  { return false; // we only process strings!
+  }
+  let result =
+  ( !isNaN(maybeInteger) // use type coercion to parse the _entirety_ of the string (`parseInt` alone does not do this)...
+  &&!isNaN(parseInt(maybeInteger)) // ...and ensure strings of whitespace fail
+  );
+  return(result);
+}
+
+</script>
+</head>
+<body class='center-container' onLoad='init()'>
+<div id='contents'>
+<h1>Dice app with good entropy</h1>
+<table id="widget">
+<tr>
+  <th>Qty</th>
+  <th>Type</th>
+  <th>Sides</th>
+  <th>Plus /<br>Minus</th>
+  <th>Modifier</th>
+  <th>Roll /<br>Flip</th>
+  <th>Results</th>
+  <th>History</th>
+</tr>
+<tr>
+  <script>
+    for(let [label, sides] of Object.entries(diceShapes))
+    { document.writeln(`<tr>`);
+      document.writeln(`<td><input type="number" id='${label}QtyInput' min=0 value=1></td>`);
+      document.writeln(`<td>${label}</td>`);
+
+      if(label == 'dx')
+      { document.writeln(`<td class='centered'><input type="number" id='dxShapeInput' min=2 value=${sides}></td>`);
+      }
+      else
+      { document.writeln(`<td class='centered'>`);
+        document.writeln(`<button onclick='clickedRoll("${label}")' class='invisibleButton'>`);
+        document.writeln(`<img src='${label}.png' class='icon'>`);
+        if(label == 'd100')
+        { document.writeln(`<img src='d10.png' class='icon'>`);
+        }
+        document.writeln(`</button>`);
+        document.writeln(`</td>`);
+      }
+      document.writeln(`<td class='centered'><button onclick='clickedPlusMinus("${label}")' class='invisibleButton'><img src='plus.png' class='icon' id='${label}PlusMinusImage'></button></td>`);
+      document.writeln(`<td><input type="number" id='${label}ModifierInput' min=0 value=0></td>`);
+      document.writeln(`<td><button onclick='clickedRoll("${label}")'>${sides==2?'Flip':'Roll'}</button></td>`);
+      document.writeln(`<td><div class='numberOuput' id='${label}RollOutput'></div></td>`);
+
+      // This td colspans table, and is only defined once at the top row.
+      if(label == 'coin')
+      { document.writeln(`<td rowspan=9><div id='historyOutput'></div></td>`);
+      }
+      document.writeln(`</tr>`);
+    }
+  </script>
+</tr>
+<tr>
+  <th colspan=3><button onclick='zeroQtys()'>Zero Qtys</button></td>
+  <th colspan=3 class='totalHeader'>Total Rolls:</td>
+  <td><div class='numberOuput' id='totalRollOutput'>0</div></td>
+  <td><button onclick='clickedRoll("all")'>Roll All</button></td>
+</tr>
+<tr>
+  <th colspan=3><button onclick='clearInputs()'>Reset Inputs</button></td>
+  <th colspan=3><button onclick='clearRolls()'>Clear Rolls</button></td>
+  <th colspan=2><button onclick='clearHistory()'>Clear History</button></td>
+</tr>
+<tr>
+  <th colspan=8><button onclick='clearAll()' id='clearAll'>Reset All</button></td>
+</tr>
+</table>
+</div>
+</body>
+</html>
