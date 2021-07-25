@@ -98,19 +98,18 @@ function clickedPlusMinus(label)
 function redraw()
 { data.dx.sides
   = data.dx.shapeInput.value
-  = forceInteger(data.dx.shapeInput.value, 2);
+  = forceInteger(data.dx.shapeInput.value, 2, 65536);
 
   let totalRoll = 0;
   for(let [label, row] of Object.entries(data))
   { // Consume Inputs
     row.qty
     = row.qtyInput.value
-    = forceInteger(row.qtyInput.value);
-console.log(label, 'qty = ', row.qty, forceInteger(row.qtyInput.value));
+    = forceInteger(row.qtyInput.value, 0, 65536);
 
     row.modifier
     = row.modifierInput.value
-    = forceInteger(row.modifierInput.value);
+    = forceInteger(row.modifierInput.value, 0, 65536);
 
     // Produce Outputs
     row.plusMinusImage.src = plusMinusImages[row.plusMinus];
@@ -192,7 +191,7 @@ function greedySelect(htmlNode)
 }
 
 function clearInputs(consent=false)
-{ if(!(consent || confirm("Are you sure you want to reset the input fields, and set all Qty to 1?")))
+{ if(!(consent || confirm("Are you sure you want to reset the input fields, set dx sides to 7, and set all Qty to 1?")))
   { return;
   }
 
@@ -200,6 +199,7 @@ function clearInputs(consent=false)
   { row.qtyInput.value = 1;
     row.plusMinus = 1;
     row.modifierInput.value = 0;
+    data.dx.shapeInput.value = 7;
   }
 
   redraw();
@@ -305,7 +305,7 @@ function clickedRoll(label='all', header=true)
       );
 
     if(label=='dx')
-    { dlabel = `d${row.sides}`;
+    { dlabel = `dx {d${row.sides}}`;
     }
     if(header)
     { appendHistory(`== ${row.capitalVerb}ed ${dlabel}`);
@@ -332,13 +332,22 @@ function clickedRoll(label='all', header=true)
   redraw();
 }
 
-function forceInteger(maybeInteger, minimum=0)
+function forceInteger(maybeInteger, minimum=0, maximum=-1)
 { if(!isInteger(maybeInteger))
   { maybeInteger = 0;
   }
 
   let result = Math.max(parseInt(maybeInteger), minimum);
-console.log('forceInteger', maybeInteger, result, isInteger(maybeInteger), !isInteger(maybeInteger));
+  if(maximum>minimum)
+  { result = Math.min(result, maximum);
+// console.log('forceInteger', maybeInteger, result, maximum, Math.min(result, maximum));
+    result = Math.min(result, maximum);
+  }
+// else
+// {
+// console.log('forceInteger: bad maximum?', minimum, maximum);
+// }
+//console.log('forceInteger', maybeInteger, result, isInteger(maybeInteger), !isInteger(maybeInteger));
   return(result);
 }
 
@@ -379,11 +388,11 @@ function isInteger(maybeInteger)
   <script>
     for(let [label, sides] of Object.entries(diceShapes))
     { document.writeln(`<tr>`);
-      document.writeln(`<td><input type="number" id='${label}QtyInput' min=0 value=1></td>`);
+      document.writeln(`<td><input type="number" id='${label}QtyInput' min=0 max=65536 value=1></td>`);
       document.writeln(`<td>${label}</td>`);
 
       if(label == 'dx')
-      { document.writeln(`<td class='centered'><input type="number" id='dxShapeInput' min=2 step=1 pattern="\\d*" value=${sides}></td>`);
+      { document.writeln(`<td class='centered'><input type="number" id='dxShapeInput' min=2 max=65536 step=1 pattern="\\d*" value=${sides}></td>`);
       }
       else
       { document.writeln(`<td class='centered'>`);
@@ -396,7 +405,7 @@ function isInteger(maybeInteger)
         document.writeln(`</td>`);
       }
       document.writeln(`<td class='centered'><button onclick='clickedPlusMinus("${label}")' class='invisibleButton'><img src='plus.png' class='icon' id='${label}PlusMinusImage'></button></td>`);
-      document.writeln(`<td><input type="number" id='${label}ModifierInput' min=0 value=0></td>`);
+      document.writeln(`<td><input type="number" id='${label}ModifierInput' min=0 max=65536 value=0></td>`);
       document.writeln(`<td><button onclick='clickedRoll("${label}")'>${sides==2?'Flip':'Roll'}</button></td>`);
       document.writeln(`<td><div class='numberOuput' id='${label}RollOutput'></div></td>`);
 
