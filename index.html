@@ -158,21 +158,21 @@ function init()
   window.historyOutput = document.getElementById('historyOutput');
   historyOutput.onclick =
       () => { greedySelect(historyOutput) };
-  
+
   window.totalRollOutput = document.getElementById('totalRollOutput');
   totalRollOutput.onclick =
       () => { greedySelect(totalRollOutput) };
-  
+
   // This resize trick on whole table helps historyOutput
   // to vertically resize itself
   window.widgetTable = document.getElementById('widget');
-  
+
   widgetTable.style.height = `${widgetTable.offsetHeight}px`;
   // historyOutput.style.height = `${widgetTable.offsetHeight - 20}px`;
   historyOutput.style.height = `595px`;
-  
 
-  
+
+
 
   let inputs = document.getElementsByTagName('input');
   for(input of inputs)
@@ -183,7 +183,7 @@ function init()
 }
 
 function greedySelect(htmlNode)
-{ 
+{
   // alert(htmlNode +':'+ htmlNode.id);
   // return;
   // htmlNode.focus();
@@ -227,7 +227,7 @@ function clearHistory(consent=false)
   { return;
   }
   historyOutput.innerText = '';
-  
+
   redraw();
 }
 
@@ -235,7 +235,7 @@ function zeroQtys(consent=false)
 { if(!(consent || confirm("Are you sure you want to Zero out every Qty field?")))
   { return;
   }
-  
+
   for(let [label, row] of Object.entries(data))
   { row.qtyInput.value = 0;
   }
@@ -266,7 +266,7 @@ function doRoll(sides) // performs a cryptographic roll
 { let entropy = -1;
   let MAX_UINT32 = Math.pow( 2, 32 ) - 1;
   while(entropy<0 || entropy > MAX_UINT32 - sides)
-  { 
+  {
 // console.log(`${entropy} leads to new Crypto Roll`);
     entropy = window.crypto.getRandomValues(new Uint32Array(1))[0];
   }
